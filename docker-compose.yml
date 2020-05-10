@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: app/laravel
+    image: app/simkeu
     container_name: app
     restart: unless-stopped
     tty: true
@@ -44,8 +44,8 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     environment:
-      MYSQL_DATABASE: "<your-db-name>"
-      MYSQL_ROOT_PASSWORD: "<your-db-password>"
+      MYSQL_DATABASE: "simkeudb"
+      MYSQL_ROOT_PASSWORD: "VG9uaSBUcmkgU3VwcmlhZGk"
       SERVICE_TAGS: dev
       SERVICE_NAME: mysql
     volumes:
@@ -62,7 +62,7 @@ services:
       - db
     environment:
       - PMA_HOST=db
-      - MYSQL_ROOT_PASSWORD=<your-db-password>
+      - MYSQL_ROOT_PASSWORD=VG9uaSBUcmkgU3VwcmlhZGk
     ports:
       - 8001:80
     networks:

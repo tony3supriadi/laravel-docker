@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
+    libwebp-dev \
+    libgmp-dev \
+    libldap2-dev \
+    netcat \
     locales \
     zip \
     jpegoptim optipng pngquant gifsicle \
@@ -24,11 +28,11 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get clean && rm -rf /var/lib/apt-lists/*
 
 # Install extensions
-RUN docker-php-ext-install mysqli pdo_mysql exif pcntl
-
-# Install nodejs
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash
-RUN apt-get install nodejs
+RUN docker-php-ext-configure gd \
+    --with-freetype=/usr/include/ \
+    --with-webp=/usr/include/ \
+    --with-jpeg=/usr/include/
+RUN docker-php-ext-install gd mysqli pdo_mysql gmp bcmath pcntl ldap sysvmsg exif
 
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
