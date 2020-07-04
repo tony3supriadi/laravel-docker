@@ -19,7 +19,7 @@ class Sale extends Model
      * @var array
      */
     protected $fillable = [
-        'customer_id', 'branch_id', 'price_total',
+        'invoice', 'customer_id', 'branch_id', 'price_total',
         'status', 'description'
     ];
 }

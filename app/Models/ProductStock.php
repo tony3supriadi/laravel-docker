@@ -19,7 +19,7 @@ class ProductStock extends Model
      * @var array
      */
     protected $fillable = [
-        'product_id', 'branch_id', 'stock_out_in',
+        'product_id', 'branch_id', 'stock_status',
         'stock_nominal', 'stock_saldo', 'description'
     ];
 }

@@ -29,7 +29,6 @@ class CreateMasterTable extends Migration
             $table->id();
             $table->string('code', 16)->unique();
             $table->string('name')->nullablle();
-            $table->timestamps();
         });
     }
 

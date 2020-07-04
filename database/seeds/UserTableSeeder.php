@@ -18,7 +18,7 @@ class UserTableSeeder extends Seeder
             'name' => 'Anonimous', 
             'username' => 'me',
         	'email' => 'anonimous@dev.me',
-            'password' => bcrypt('devid1610'),
+            'password' => bcrypt('devid1234'),
             'branch_id' => 0
         ]);
   

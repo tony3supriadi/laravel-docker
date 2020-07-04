@@ -1,0 +1,24 @@
+/* your styles go here */
+
+.content-inner {
+    margin-left: 0 !important;
+    max-height: calc(100vh - 70px);
+}
+.content-inner.active {
+    margin-left: 90px !important;
+}  
+
+@media (min-width: 1200px) {
+    .content-inner {
+        margin-left: 250px !important;
+    }  
+}
+
+.page-header {
+    width: calc(100% - 250px);
+    max-height: 62px;    
+}
+
+.content {
+    margin-top: 62px !important;
+}

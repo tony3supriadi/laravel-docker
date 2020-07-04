@@ -16,6 +16,7 @@ class CreateShoppingsTable extends Migration
         Schema::create('shoppings', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('supplier_id')->unsigned();
+            $table->bigInteger('invoice')->unique();
             $table->double('price_total', 16, 0)->default(0);
             $table->enum('status', ['Lunas', 'Hutang', 'Batal'])->default('Lunas');
             $table->text('description')->nullable();

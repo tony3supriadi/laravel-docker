@@ -20,6 +20,6 @@ class ShoppingItem extends Model
      */
     protected $fillable = [
         'shopping_id', 'supplier_id', 'product_id',
-        'price', 'count_item', 'sub_total', 'description'
+        'price', 'qty', 'sub_total', 'description'
     ];
 }

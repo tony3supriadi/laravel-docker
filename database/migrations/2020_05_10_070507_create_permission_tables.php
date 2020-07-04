@@ -25,7 +25,7 @@ class CreatePermissionTables extends Migration
             $table->string('name');
             $table->string('name_string');
             $table->string('guard_name');
-            $table->bigInteger('parent_id')->default(0);
+            $table->bigInteger('parent')->default(0);
             $table->timestamps();
         });
 

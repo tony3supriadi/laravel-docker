@@ -17,7 +17,7 @@ class CreateCustomerGroupsTable extends Migration
             $table->id();
             $table->bigInteger('branch_id')->unsigned();
             $table->string('name');
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->foreign('branch_id')->references('id')->on('branchs');
             $table->timestamps();
         });

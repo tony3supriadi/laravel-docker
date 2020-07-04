@@ -20,6 +20,6 @@ class Shopping extends Model
      */
     protected $fillable = [
         'supplier_id', 'price_total', 'status',
-        'description'
+        'description', 'invoice'
     ];
 }

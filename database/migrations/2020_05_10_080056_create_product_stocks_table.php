@@ -17,7 +17,7 @@ class CreateProductStocksTable extends Migration
             $table->id();
             $table->bigInteger('product_id')->unsigned();
             $table->bigInteger('branch_id')->unsigned();
-            $table->enum('stock_out_in', ['Masuk', 'Keluar'])->nullable();
+            $table->string('stock_status');
             $table->integer('stock_nominal')->default(0);
             $table->integer('stock_saldo')->default(0);
             $table->text('description')->nullable();

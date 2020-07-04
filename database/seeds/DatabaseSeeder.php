@@ -19,5 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call(RegencyTableSeeder::class);
         $this->call(CompanyTableSeeder::class);
         $this->call(BranchTableSeeder::class);
+        $this->call(CustomerGroupTableSeeder::class);
+        $this->call(DummyTableSeeder::class);
     }
 }

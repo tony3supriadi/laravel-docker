@@ -19,9 +19,10 @@ class CreateProductsTable extends Migration
             $table->bigInteger('unit_id')->unsigned();
             $table->string('code')->unique();
             $table->string('name');
+            $table->double('purchase_price', 16, 0)->nullable();
+            $table->double('price', 16, 0)->nullable();
             $table->integer('stock')->unsigned()->default(0);
             $table->integer('stockmin')->unsigned()->default(0);
-            $table->string('image')->nullable();
             $table->text('description')->nullable();
             $table->foreign('category_id')->references('id')->on('product_categories');
             $table->foreign('unit_id')->references('id')->on('product_units');

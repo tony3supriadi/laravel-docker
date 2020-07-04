@@ -20,6 +20,6 @@ class SaleItem extends Model
      */
     protected $fillable = [
         'sale_id', 'product_id', 'price',
-        'count_item', 'sub_total', 'description'
+        'qty', 'sub_total', 'description'
     ];
 }
