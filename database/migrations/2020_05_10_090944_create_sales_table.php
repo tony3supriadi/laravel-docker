@@ -16,10 +16,13 @@ class CreateSalesTable extends Migration
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('customer_id')->unsigned();
+            $table->bigInteger('invoice')->unique();
             $table->bigInteger('branch_id')->unsigned();
             $table->double('price_total')->default(0);
             $table->enum('status', ['Lunas', 'Piutang', 'Batal'])->default('Lunas');
             $table->text('description')->nullable();
+            $table->boolean('is_barter')->default(false);
+            $table->integer('jml_barter')->default(0)->unsigned();
             $table->foreign('customer_id')->references('id')->on('customers');
             $table->foreign('branch_id')->references('id')->on('branchs');
             $table->timestamps();

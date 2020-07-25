@@ -10,7 +10,8 @@ use App\Models\Customer;
 use App\Models\CustomerGroups as Group;
 use App\Models\Regency;
 use App\Models\Provincy;
-
+use App\Models\Sale;
+use App\Models\SalePayment;
 use Auth;
 
 class CustomerController extends Controller
@@ -107,17 +108,21 @@ class CustomerController extends Controller
         $data = array(
             'title' => 'Pelanggan',
             'actived' => 'master-pelanggan',
-            'customer' => Customer::select('customers.*',
-                    'customer_groups.name as group_name',
-                    'regencies.name as regency_name',
-                    'provinces.name as province_name')
-                ->join('customer_groups', 'customer_groups.id', '=', 'group_id')
-                ->join('regencies', 'regencies.id', '=', 'regency_id')
-                ->join('provinces', 'provinces.id', '=', 'province_id')
+            'customer' => Customer::select('customers.*')
                 ->where('customers.id', '=', decrypt($id))
                 ->first()
         );
         return view('modules.master.customer.show', $data);
+    }
+
+    public function riwayat($id) 
+    {
+        $data = array(
+            'title' => 'Pelanggan',
+            'actived' => 'master-pelanggan',
+            'customer' => Customer::find(decrypt($id))
+        );
+        return view('modules.master.customer.riwayat', $data);
     }
 
     /**

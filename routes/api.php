@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -13,4 +14,9 @@ Route::get('produk/{code}', function($id) {
                     ->where('products.id', '=', $id)
                     ->first();
     return response()->json($data);
+});
+
+Route::get('customer/{id}', function ($id) {
+    $customer = Customer::find($id);
+    return response()->json($customer);
 });

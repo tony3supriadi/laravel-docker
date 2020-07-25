@@ -46,6 +46,7 @@ Route::group(['middleware' => ['auth']], function() {
     Route::resource('pelanggan/grup', 'Master\Pelanggan\GroupController')
         ->except('create');
 
+    Route::get('pelanggan/{id}/tabungan', 'Master\Pelanggan\CustomerController@riwayat');
     Route::post('pelanggan/create-group', 'Master\Pelanggan\CustomerController@create_group');
     Route::resource('pelanggan', 'Master\Pelanggan\CustomerController');
 
@@ -72,6 +73,7 @@ Route::group(['middleware' => ['auth']], function() {
     Route::resource('operasional/lainnya', 'Operational\OperationalController')
             ->except('show');
 
+    Route::post('/penjualan/{id}/simpanTabungan', 'Selling\SellingController@simpanTabungan');
     Route::post('/penjualan/add-to-cart', 'Selling\SellingController@addToCart');
     Route::get('/penjualan/update-to-cart/{id}', 'Selling\SellingController@editToCart');
     Route::delete('/penjualan/destroy-cart/{index}', 'Selling\SellingController@destroyCart');

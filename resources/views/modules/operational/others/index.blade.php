@@ -8,6 +8,9 @@
         </h2>
 
         <div class="col-md-6 text-right">
+            <a href="?exportTo=excel{{ isset($_GET['m']) ? '&m='.$_GET['m'] : '' }}{{ isset($_GET['y']) ? '&y='.$_GET['y'] : '' }}" class="btn btn-primary btn-sm">
+                <i class="fa fa-file-excel-o mr-2"></i>Export
+            </a>
             @can('operational-create')
             <a href="{{ url('operasional/lainnya/create') }}" class="btn btn-primary btn-sm">
                 <i class="fa fa-plus-circle mr-2"></i>INPUT DATA

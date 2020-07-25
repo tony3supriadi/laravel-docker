@@ -28,7 +28,7 @@ class OperationalController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
         $filter = isset($_GET['m']) 
             ? $_GET['y'].'-'.$_GET['m'].'%' 
@@ -40,6 +40,13 @@ class OperationalController extends Controller
             'operationals' => Other::where('created_at', 'LIKE', $filter)->get(),
             'total' => Other::where('created_at', 'LIKE', $filter)->sum('nominal')
         );
+
+        if ($request->exportTo) {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=operasioanal-"
+                .date('Ymd').time().".xls");
+            return view('modules.operational.others.excel', $data);
+        }
         return view('modules.operational.others.index', $data);
     }
 

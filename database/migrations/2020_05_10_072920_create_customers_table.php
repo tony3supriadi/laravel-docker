@@ -24,6 +24,7 @@ class CreateCustomersTable extends Migration
             $table->string('email', 128)->nullable();
             $table->string('phone', 32)->nullable();
             $table->text('description')->nullable();
+            $table->double('saldo_tabungan', 16, 0)->default(0);
             $table->foreign('group_id')->references('id')->on('customer_groups');
             $table->timestamps();
         });

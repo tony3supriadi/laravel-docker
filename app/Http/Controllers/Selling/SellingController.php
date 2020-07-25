@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Selling;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-
 use Illuminate\Support\Facades\Validator;
 
 use App\Models\Sale;
@@ -15,9 +14,11 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\ProductPrice as Price;
 use App\Models\Company;
-
-use Auth;
+use App\Models\Shopping;
+use App\Models\ShoppingItem;
+use App\Models\ShoppingPayment;
 use Cart;
+use Auth;
 
 class SellingController extends Controller
 {
@@ -34,13 +35,15 @@ class SellingController extends Controller
             if ($request->status && $request->status != 'semua') {
                 $sales = Sale::select('sales.*', 'customers.name as customer_name')
                             ->join('customers', 'customers.id', '=', 'customer_id')
-                            ->whereBetween('sales.created_at', [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
+                            ->whereBetween('sales.created_at', $request->start ? 
+                                [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] : 
+                                [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
                             ->where('sales.status', '=', $request->status)
                             ->orderBy('id', 'DESC')
                             ->get();
 
                 $between = $request->start ?
-                    [$request->start, $request->end] :
+                    [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] :
                     [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'];
 
                 
@@ -73,7 +76,9 @@ class SellingController extends Controller
             } else {
                 $sales = Sale::select('sales.*', 'customers.name as customer_name')
                                 ->join('customers', 'customers.id', '=', 'customer_id')
-                                ->whereBetween('sales.created_at', [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
+                                ->whereBetween('sales.created_at', $request->start ? 
+                                    [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] : 
+                                    [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
                                 ->orderBy('id', 'DESC')
                                 ->get();
             }
@@ -91,6 +96,12 @@ class SellingController extends Controller
             'sales' => $sales,
             'total' => $total
         );
+
+        if ($request->exportTo) {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=laporan-penjualan-".date('Ymd').time().".xls");
+            return view('modules.selling.excel', $data);
+        }
         return view('modules.selling.index', $data);
     }
 
@@ -125,26 +136,55 @@ class SellingController extends Controller
         ], [
             'customer_id.required' => 'Anda belum memilih pelanggan'
         ]);
-
+        
         if ($validate->fails()) {
             return back()->withInput()->withErrors($validate);
         } else {
 
+            $customer = Customer::find($request->customer_id);
+            $inv = time();
+            if ($request->metodePembayaran == 'tabungan') {
+                $sisa_pembayaran = $request->payment - $request->total;
+                $customer->saldo_tabungan = $sisa_pembayaran;
+                $customer->save();
+            }
+
+            if ($request->metodePembayaran == 'barter') {
+                $product = Product::find($request->barang_barter);
+                $product->stock = $product->stock + $request->jumlah_barang_barter;
+                $product->save();
+
+                ProductStock::create([
+                    'product_id' => $request->barang_barter,
+                    'branch_id' => Auth::user()->branch_id != 0 
+                                        ? Auth::user()->branch_id
+                                        : 1,
+                    'stock_status' => 'Masuk',
+                    'stock_nominal' => $request->jumlah_barang_barter,
+                    'stock_saldo' => $product->stock,
+                    'description' => 'Stock Barter dari '.$customer->name.' (INV-'.$inv.')'
+                ]);
+            }
+
+
             $sale = Sale::create([
-                'invoice' => time(),
+                'invoice' => $inv,
                 'customer_id' => $request->customer_id,
                 'branch_id' => Auth::user()->branch_id != 0 
                                     ? Auth::user()->branch_id
                                     : 1,
                 'price_total' => $request->total,
-                'status' => $request->status != "Uang Muka" ? $request->status : 'Piutang',
-                'description' => $request->description
+                'status' => $request->payment >= $request->total ? 'Lunas' : 'Piutang',
+                'description' => $request->description,
+                'is_barter' => $request->metodePembayaran == 'barter' ? true : false,
+                'jml_barter' => $request->jumlah_barang_barter
             ]);
 
             foreach(Cart::getContent() as $item) {
                 SaleItem::create([
                     'sale_id' => $sale->id,
                     'product_id' => $item->id,
+                    'purchase_price' => explode("-", $item->name)[1],
                     'price' => $item->price,
                     'qty' => $item->quantity,
                     'sub_total' => ($item->price * $item->quantity),
@@ -179,8 +219,13 @@ class SellingController extends Controller
             ]);
 
             Cart::clear();
-            return redirect('penjualan/'.encrypt($sale->id))
-                        ->with('success', true);
+
+            if ($request->metodePembayaran == 'tunai') {
+                return redirect('penjualan/'.encrypt($sale->id))
+                        ->with('backPayment', $request->payment > $request->total ? true : false);
+            } else {
+                return redirect('penjualan/'.encrypt($sale->id));
+            }
         }
     }
 
@@ -265,7 +310,37 @@ class SellingController extends Controller
             $sale->save();
         }
 
-        return back();
+        $sale = Sale::find($request->sale_id);
+        if ($sale->is_barter) {
+            $shopping = Shopping::create([
+                'supplier_id' => 1,
+                'invoice' => time(),
+                'price_total' => $request->debit,
+                'status' => 'Lunas',
+                'description' => 'Belanja Pembayaran Telor Barter INV-'.$sale->invoice,
+            ]);
+
+            ShoppingItem::create([
+                'shopping_id' => $shopping->id,
+                'supplier_id' => 1,
+                'product_id' => 1,
+                'price' => ($request->debit / $sale->jml_barter),
+                'qty' => $sale->jml_barter,
+                'sub_total' => $request->debit,
+                'description' => 'Belanja Pembayaran Telor Barter INV-'.$sale->invoice,
+            ]);
+
+            ShoppingPayment::create([
+                'shopping_id' => $shopping->id,
+                'supplier_id' => 1,
+                'billing' => $request->debit,
+                'payment' => $request->debit,
+                'debit' => $request->debit,
+                'description' => 'PAYMENT-'.time().' ('.strtoupper($request->status).')'
+            ]);
+        }
+
+        return back()->with('backPayment', $request->debit > $request->billing ? true : false);
     }
 
     public function createCustomer(Request $request)
@@ -281,11 +356,12 @@ class SellingController extends Controller
     {
         $cartItem = Cart::add([
             'id' => $request->id,
-            'name' => $request->name,
+            'name' => $request->name.'-'.$request->purchase_price,
             'quantity' => $request->quantity,
             'price' => $request->price,
             'attributes' => [
                 'code' => $request->code,
+                'purchase_price' => $request->purchase_price,
                 'description' => $request->description
             ]
         ]);
@@ -323,6 +399,15 @@ class SellingController extends Controller
     public function destroyCart($index = null)
     {
         Cart::remove($index);
+        return back();
+    }
+
+    public function simpanTabungan(Request $request, $id)
+    {
+        $data = Customer::find(decrypt($id));
+        $data->saldo_tabungan = $data->saldo_tabungan + $request->saldo_tabungan;
+        $data->save();
+
         return back();
     }
 }

@@ -93,7 +93,9 @@
                     <table class="table mb-0">
                         <?php $num = 1; ?>
                         <?php $payment = 0; ?>
+                        <?php $last = []; ?>
                         @foreach($sale['payments'] as $item)
+                        <?php $last = $item; ?>
                         <tr>
                             <td width="5px">{{ $num }}.</td>
                             <td width="20%">{{ Carbon\Carbon::parse($item->created_at)->format('d M Y') }}</td>
@@ -108,6 +110,15 @@
                                 <th colspan="3" class="text-right">TOTAL :</th>
                                 <td class="text-right">{{ number_format($payment, 0, ',', '.') }}</td>
                             </tr>
+
+                            @if($last->payment > $last->billing)
+                            <tr>
+                                <th colspan="3" class="text-right">UANG KEMBALIAN :</th>
+                                <td class="text-right">
+                                    {{ number_format(($last->payment - $last->billing), 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @endif
                         </tfoot>
                     </table>
                 </div>
@@ -154,6 +165,7 @@
                         <th width="5px">:</th>
                         <td class="text-right">Rp{{ number_format(($last->billing - $last->payment), 0, ',', '.') }},-</td>
                     </tr>
+
                     <tr>
                         <th class="align-middle text-right">PEMBAYARAN</th>
                         <th class="align-middle">:</th>
@@ -232,6 +244,14 @@
                                 <?php $total =  $total + $item->sub_total; ?>
                                 @endforeach
 
+                                @if($sale->is_barter)
+                                <tr>
+                                    <td colspan="4">
+                                        {{ $sale->description }}
+                                    </td>
+                                </tr>
+                                @endif
+
                                 @if(count($sale['items']) < 10) 
                                     @for($i = 0; $i < (10 - count($sale['items'])); $i++) 
                                         <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
@@ -248,8 +268,12 @@
                                     <th class="text-right">{{ number_format($last->payment, 0, ',', '.') }}</th>
                                 </tr>
                                 <tr>
-                                    <th colspan="3" class="text-right">SISA :</th>
-                                    <th class="text-right">{{ number_format(($last->billing - $last->payment), 0, ',', '.') }}</th>
+                                    <th colspan="3" class="text-right" style="border:0px">UANG KEMBALIAN :</th>
+                                    <th class="text-right">{{ $sale->status == "Lunas" ? number_format(($last->payment - $last->billing), 0, ',', '.') : 0 }}</th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-right">HUTANG :</th>
+                                    <th class="text-right">{{ ($last->billing <= $last->payment) ? 0 : number_format(($last->billing - $last->payment), 0, ',', '.') }}</th>
                                 </tr>
                                 </tfoot>
                             </table>
@@ -288,6 +312,8 @@
 @endsection
 
 @section('style')
+<link rel="stylesheet" href="{{ asset('vendor/sweetalert2/sweetalert2.css') }}">
+
 <style type="text/css">
 @media print {
     h4 {
@@ -303,4 +329,30 @@
     }
 }
 </style>
+@endsection
+
+@section('script')
+@if(Session::get('backPayment'))
+<form id="simpanTabungan" action="{{ url('penjualan/'.encrypt($sale->customer_id).'/simpanTabungan') }}" method="post">
+    @csrf
+    <input type="hidden" name="saldo_tabungan" value="{{ ($last->payment - $last->billing) }}">
+</form>
+<script src="{{ asset('vendor/sweetalert2/sweetalert2.js') }}"></script>
+<script type="text/javascript">
+Swal.fire({
+  title: 'UANG KEMBALIAN',
+  text: "{{ number_format(($last->payment - $last->billing), 0, ',', '.') }}",
+  showCancelButton: true,
+  confirmButtonColor: '#3085d6',
+  cancelButtonColor: '#d33',
+  confirmButtonText: 'DISIMPAN',
+  cancelButtonText: 'TUTUP',
+}).then((result) => {
+  if (result.value) {
+    event.preventDefault();
+    document.getElementById('simpanTabungan').submit();
+  }
+})
+</script>
+@endif
 @endsection

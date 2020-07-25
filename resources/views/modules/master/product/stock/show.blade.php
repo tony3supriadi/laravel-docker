@@ -8,7 +8,12 @@
         </h2>
 
         <div class="col-md-6 text-right">
-            <a href="{{ url('produk/stok/'.encrypt($products[0]->product_id).'/edit') }}" class="btn btn-sm btn-primary">
+            <a href="?exportTo=excel{{ isset($_GET['start']) ? '&start='.$_GET['start'] : '' }}{{ isset($_GET['end']) ? '&end='.$_GET['end'] : '' }}" class="btn btn-sm btn-outline-primary">
+                <i class="fa fa-file-excel-o mr-1"></i>
+                Export
+            </a>
+            
+            <a href="{{ url('produk/stok') }}" class="btn btn-sm btn-primary">
                 <i class="fa fa-cubes mr-1"></i>
                 Atur Stock
             </a>
@@ -25,7 +30,33 @@
                 <a href="{{ URL::previous() }}" class="btn btn-sm btn-default mr-2 rounded-circle">
                     <i class="fa fa-arrow-left"></i>
                 </a>
-                RIWAYAT STOK PRODUK
+                RIWAYAT STOK {{ $product->name }}
+            </div>
+
+            <div class="row mb-0">
+                <div class="col-md-1 py-1">
+                    FILTER : 
+                </div>
+                <div class="col-md-6">
+                    <form action="" method="get">
+                        @if(isset($_GET['status']))
+                        <input type="hidden" name="status" value="{{ $_GET['status'] }}">
+                        @endif
+                        <div class="form-group row">
+                            <div class="col-4 px-0">
+                                <input type="date" name="start" value="{{ isset($_GET['start']) ? $_GET['start'] : date('Y').'-'.date('m').'-01' }}" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-4 px-0">
+                                <input type="date" name="end" value="{{ isset($_GET['end']) ? $_GET['end'] : date('Y-m-d') }}" timezone="Asia/Jakarta" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-3">
+                                <button type="submit" class="btn btn-sm btn-primary btn-block">
+                                    TAMPIL
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <table class="table table-hover datatable no-ordering">

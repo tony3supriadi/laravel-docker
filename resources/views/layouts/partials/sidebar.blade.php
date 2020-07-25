@@ -82,6 +82,8 @@
             
         </ul>
 
+        
+
         <span class="heading">DATA MASTER</span>
         <ul class="list-unstyled">
             @if(Auth::user()->can('produk-list')
@@ -254,7 +256,7 @@
             </li>
         </ul>
 
-        <span class="heading">DATA Penjualan</span>
+        <span class="heading">DATA PENJUALAN</span>
         <ul class="list-unstyled">
             @can('penjualan')
             <li class="<?= $actived == "penjualan" ? 'active' : '' ?>">
@@ -279,6 +281,15 @@
                 </a>
             </li>
             @endcan -->
+        </ul>
+
+        <span class="heading">LABA / RUGI</span>
+        <ul class="list-unstyled">
+            <li class="<?= $actived == "laporan" ? 'active' : '' ?>">
+                <a href="{{ url('/laporan') }}">
+                    <i class="fa fa-line-chart"></i> Laporan 
+                </a>
+            </li>
         </ul>
         </div>
     </nav>

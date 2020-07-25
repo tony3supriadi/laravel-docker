@@ -13,8 +13,8 @@ use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\ProductStock;
 
-use Auth;
 use Cart;
+use Auth;
 
 class ShoppingController extends Controller
 {
@@ -44,13 +44,15 @@ class ShoppingController extends Controller
             if ($request->status && $request->status != 'semua') {
                 $shoppings = Shopping::select('shoppings.*', 'suppliers.name as supplier_name')
                             ->join('suppliers', 'suppliers.id', '=', 'supplier_id')
-                            ->whereBetween('shoppings.created_at', [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
+                            ->whereBetween('shoppings.created_at', $request->start ? 
+                                [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] : 
+                                [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
                             ->where('shoppings.status', '=', $request->status)
                             ->orderBy('id', 'DESC')
                             ->get();
 
                 $between = $request->start ?
-                    [$request->start, $request->end] :
+                    [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] :
                     [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'];
 
                 
@@ -83,7 +85,9 @@ class ShoppingController extends Controller
             } else {
                 $shoppings = Shopping::select('shoppings.*', 'suppliers.name as supplier_name')
                                 ->join('suppliers', 'suppliers.id', '=', 'supplier_id')
-                                ->whereBetween('shoppings.created_at', [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
+                                ->whereBetween('shoppings.created_at', $request->start ? 
+                                    [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] : 
+                                    [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
                                 ->orderBy('id', 'DESC')
                                 ->get();
             }
@@ -101,6 +105,12 @@ class ShoppingController extends Controller
             'shoppings' => $shoppings,
             'total' => $total
         );
+
+        if ($request->exportTo) {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=laporan-belanja-".date('Ymd').time().".xls");
+            return view('modules.operational.shopping.excel', $data);
+        }
         return view('modules.operational.shopping.index', $data);
     }
 

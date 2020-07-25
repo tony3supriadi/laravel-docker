@@ -17,6 +17,7 @@ class CreateSaleItemsTable extends Migration
             $table->id();
             $table->bigInteger('sale_id')->unsigned();
             $table->bigInteger('product_id')->unsigned();
+            $table->double('purchase_price', 16, 0)->default(0);
             $table->double('price', 16, 0)->default(0);
             $table->integer('qty')->unsigned()->default(0);
             $table->double('sub_total', 16, 0)->default(0);

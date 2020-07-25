@@ -75,22 +75,40 @@ class StockController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $data = array(
-            'title' => 'Stok Produk',
-            'actived' => 'master-produk',
-            'products' => Stock::select('product_stocks.*',
+        $product = Product::find(decrypt($id));
+        $product_stocks = Stock::select('product_stocks.*',
                                 'products.code as product_code',
                                 'products.name as product_name',
                                 'products.stockmin as product_stockmin',
                                 'product_units.symbol')
                             ->where('product_id', '=', decrypt($id))
+                            ->whereBetween('product_stocks.created_at', $request->start ? 
+                                    [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] : 
+                                    [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'])
                             ->join('products', 'products.id', '=', 'product_id')
                             ->join('product_units', 'unit_id', '=', 'product_units.id')
                             ->orderBy('id', 'DESC')
-                            ->get()
+                            ->get();
+        
+        $data = array(
+            'title' => 'Stok Produk',
+            'actived' => 'master-produk',
+            'id' => $id,
+            'product' => $product,
+            'products' => $product_stocks
         );
+
+        if ($request->exportTo) {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=stok-produk-"
+                .strtolower(str_replace(" ","-",$product->name))
+                ."-".date('Ymd').time().".xls");
+                
+            return view('modules.master.product.stock.showExel', $data);
+        }
+
         return view('modules.master.product.stock.show', $data);
     }
 

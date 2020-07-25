@@ -50,7 +50,8 @@
                                         $('#detail-value-code').val(data.code);
                                         $('#detail-value-name').val(data.name);
                                         $('#detail-value-price').val(data.price);
-
+                                        $('#detail-value-purchase_price').val(data.purchase_price);
+                                        
                                         $('#detail-product').removeClass('d-none');
                                         $('#empty-detail-product').addClass('d-none');
                                     }
@@ -105,17 +106,41 @@
 
                         <hr />
                         
-                        <form action="{{ url('penjualan/add-to-cart') }}" method="post" class="px-3">
+                        <form action="{{ url('penjualan/add-to-cart') }}"
+                            onsubmit="
+                                var stock = $('#detail-text-stock').html();
+                                var qty = $('#qty').val();
+
+                                if (parseInt(qty) > parseInt(stock)) {
+                                    $('#qty').addClass('is-invalid');
+                                    $('#qtyError').addClass('d-block');
+                                    $('#qtyError #message').html('Qty melebihi jumlah stok.');
+                                    return false;
+                                }
+
+                                if (!qty) {
+                                    $('#qty').addClass('is-invalid');
+                                    $('#qtyError').addClass('d-block');
+                                    $('#qtyError #message').html('Qty minimal 1.');
+                                    return false;
+                                }
+                            "
+                            method="post" class="px-3">
                             @csrf 
 
                             <input type="hidden" name="id" id="detail-value-id">
                             <input type="hidden" name="code" id="detail-value-code">
                             <input type="hidden" name="name" id="detail-value-name">
                             <input type="hidden" name="price" id="detail-value-price">
+                            <input type="hidden" name="purchase_price" id="detail-value-purchase_price">
 
                             <div class="form-group">
                                 <label for="count_item">Qty</label>
-                                <input type="text" name="quantity" value="1" class="form-control text-right" autofocus="off">
+                                <input type="text" id="qty" name="quantity" value="1" class="form-control text-right" autocomplete="off">
+
+                                <span id="qtyError" class="invalid-feedback">
+                                    <strong id="message"></strong>
+                                </span>  
                             </div>
 
                             <div class="form-group">
@@ -175,7 +200,7 @@
                                         </form>
                                     </td>
                                     <td>{{ $item->attributes->code }}</td>
-                                    <td>{{ $item->name }}</td>
+                                    <td>{{ explode("-", $item->name)[0] }}</td>
                                     <td>{{ $item->quantity }}</td>
                                     <td class="text-right">Rp{{ number_format($item->price, 0, ',', '.') }},-</td>
                                     <td class="text-right">Rp{{ number_format(($item->quantity * $item->price), 0, ',', '.') }},-</td>
@@ -208,7 +233,8 @@
                                     </small>
                                 </a>    
                                 <select name="customer_id" 
-                                    onchange="window.location.href='{{ url('penjualan/update-to-cart/') }}/' + $(this).val()" data-placeholder="" class="form-control select2">
+                                    onchange="
+                                        window.location.href='{{ url('penjualan/update-to-cart/') }}/' + $(this).val()" data-placeholder="" class="form-control select2">
                                     <option value=""></option>
                                     @foreach($customers as $item)
                                         <option value="{{ $item->id }}" @if(Session::get('id') == $item->id) selected @endif>
@@ -223,33 +249,61 @@
                                 <label for="total" class="mb-0">Total</label>
                                 <input type="text" name="total" value="{{ Cart::getTotal() }}" class="form-control text-right" readonly />
                             </div>
-
-                            <div class="form-group mb-1">
-                                <label for="status" class="mb-0">Status Pembayaran</label>
-                                <select name="status" class="form-control select2"
+                            
+                            <div class="form-group">
+                                <label for="metode-pembayaran">Metode Pembayaran</label>
+                                <select name="metodePembayaran" id="metodePembayaran"
                                     onchange="
-                                        if ($(this).val() == 'Uang Muka') {
+                                        var value = $(this).val();
+                                        if (value == 'tunai') {
                                             $('#payment').removeClass('d-none');
-                                            $('input[name=payment]').val(0);
+                                            $('#barter').addClass('d-none');
+                                            $('#tabunganText').addClass('d-none');
+
+                                            $('input[name=payment]').val(0).removeAttr('readonly');
                                         } else
-                                        if ($(this).val() == 'Lunas') {
-                                            $('#payment').addClass('d-none');
-                                            $('input[name=payment]').val(<?= Cart::getTotal() ?>);
+                                        if (value == 'tabungan') {
+                                            $('#payment').removeClass('d-none');
+                                            $('#barter').addClass('d-none');
+                                            $('#tabunganText').removeClass('d-none');
+
+                                            $('input[name=payment]').attr('readonly', '');
+                                            
+                                            var id = $('select[name=customer_id]').val();
+                                            $.get('<?= url('api/customer') ?>/' + id, function(data) {
+                                                $('input[name=payment]').val(data.saldo_tabungan);
+                                            });
                                         } else
-                                        if ($(this).val() == 'Piutang') {
+                                        if (value == 'barter') {
                                             $('#payment').addClass('d-none');
-                                            $('input[name=payment]').val(0);
+                                            $('#barter').removeClass('d-none');
+                                            $('#tabunganText').addClass('d-none');
+
+                                            $('input[name=payment]').val(0).removeAttr('readonly');
                                         }
-                                    ">
-                                    <option value="Lunas">Lunas</option>
-                                    <option value="Piutang">Piutang</option>
-                                    <option value="Uang Muka">Uang Muka</option>
+                                    "
+                                    class="form-control select2">
+                                    <option value="tunai">Uang Tunai</option>
+                                    <option value="tabungan">Tabungan</option>
+                                    <option value="barter">Barter</option>
                                 </select>
                             </div>
-
-                            <div id="payment" class="form-group mb-1 d-none">
+                            <div id="payment" class="form-group mb-2">
                                 <label for="payment" class="mb-0">Jumlah Pembayaran</label>
-                                <input type="text" name="payment" value="{{ Cart::getTotal() }}" class="form-control text-right" />
+                                <input type="text" name="payment" value="0" class="form-control text-right" autofocus="off" />
+                            </div>
+                            
+                            <div id="barter" class="d-none">
+                                <div class="form-group mb-1">
+                                    <label for="barang_barter" class="mb-0">Barang Barter</label>
+                                    <input type="text" value="TELOR" class="form-control" readonly>
+                                    <input type="hidden" name="barang_barter" value="1">
+                                </div>
+
+                                <div class="form-group mb-1">
+                                    <label for="payment" class="mb-0">Jumlah Barang</label>
+                                    <input type="text" name="jumlah_barang_barter" value="0" class="form-control text-right" autofocus="off" />
+                                </div>
                             </div>
 
                             <div class="form-group">

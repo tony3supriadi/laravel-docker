@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Master\Supplier;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 use App\Models\Supplier;
@@ -11,8 +12,6 @@ use App\Models\Regency;
 use App\Models\Provincy;
 use App\Models\Bank;
 use App\Models\Branch;
-
-use Auth;
 
 class SupplierController extends Controller
 {
@@ -36,34 +35,10 @@ class SupplierController extends Controller
      */
     public function index()
     {
-        $suppliers = [];
-        if (Auth::user()->branch_id != 0) {
-            $suppliers = Supplier::select('suppliers.*',
-                    'provinces.name as province_name', 
-                    'regencies.name as regency_name',
-                    'banks.code as bank_code',
-                    'banks.name as bank_name')
-                ->join('provinces', 'provinces.id', '=', 'province_id')
-                ->join('regencies', 'regencies.id', '=', 'regency_id')
-                ->join('banks', 'banks.id', '=', 'bank_id')
-                ->where('suppliers.branch_id', '=', Auth::user()->branch_id)
-                ->orderBy('name', 'ASC')->get();
-        } else {
-            $suppliers = Supplier::select('suppliers.*',
-                    'provinces.name as province_name', 
-                    'regencies.name as regency_name',
-                    'banks.code as bank_code',
-                    'banks.name as bank_name')
-                ->join('provinces', 'provinces.id', '=', 'province_id')
-                ->join('regencies', 'regencies.id', '=', 'regency_id')
-                ->join('banks', 'banks.id', '=', 'bank_id')
-                ->orderBy('name', 'ASC')->get();
-        }
-
         $data = array(
             'title' => 'Supplier',
             'actived' => 'master-supplier',
-            'suppliers' => $suppliers
+            'suppliers' => Supplier::orderBy('name', 'ASC')->get()
         );
         return view('modules.master.supplier.index', $data);
     }

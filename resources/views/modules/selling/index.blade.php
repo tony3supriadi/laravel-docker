@@ -6,6 +6,12 @@
         <h2 class="no-margin-bottom col-md-6">
             <i class="fa fa-shopping-cart mr-3"></i>Data Belanja
         </h2>
+
+        <div class="col-md-6 text-right">
+            <a href="?exportTo=excel{{ isset($_GET['status']) ? '&status='.$_GET['status'] : '' }}{{ isset($_GET['start']) ? '&start='.$_GET['start'] : '' }}{{ isset($_GET['end']) ? '&end='.$_GET['end'] : '' }}" class="btn btn-primary btn-sm">
+                <i class="fa fa-file-excel-o mr-2"></i>Export
+            </a>
+        </div>
     </div>
 </header>
 @endsection

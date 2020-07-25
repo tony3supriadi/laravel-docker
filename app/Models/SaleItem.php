@@ -19,7 +19,7 @@ class SaleItem extends Model
      * @var array
      */
     protected $fillable = [
-        'sale_id', 'product_id', 'price',
+        'sale_id', 'product_id', 'purchase_price', 'price',
         'qty', 'sub_total', 'description'
     ];
 }
