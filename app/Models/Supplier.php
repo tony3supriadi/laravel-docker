@@ -22,6 +22,6 @@ class Supplier extends Model
         'branch_id', 'name', 'address', 'regency_id',
         'province_id', 'postcode', 'email', 'phone',
         'telp', 'faxmail', 'bank_id', 'bank_number',
-        'bank_account', 'description'
+        'bank_account', 'description', 'companies'
     ];
 }

@@ -55,6 +55,18 @@
 
                 <div class="form-group row">
                     <label for="name" class="col-md-3 py-2 text-right">
+                        SUPPLIER :
+                    </label>
+                    
+                    <div class="col-md-6 py-2">
+                        <input type="radio" value="1" name="companies" class="mr-1" checked> PERUSAHAAN
+                        <span class="mx-2 text-gray">|</span>
+                        <input type="radio" value="0" name="companies" class="mr-1"> PERORANGAN
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="name" class="col-md-3 py-2 text-right">
                         <span class="text-red">*</span> NAMA SUPPLIER :
                     </label>
                     

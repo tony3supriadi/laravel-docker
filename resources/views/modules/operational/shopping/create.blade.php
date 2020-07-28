@@ -275,6 +275,12 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <label for="name">Supplier :</label> <br />
+                    <input type="radio" name="companies" value="1" class="mr-2" autocomplete="off" checked /> Perusahaan <br />
+                    <input type="radio" name="companies" value="0" class="mr-2" autocomplete="off" /> Perorangan
+                </div>
+
+                <div class="form-group">
                     <label for="name">Nama Supplier :</label>
                     <input type="text" name="name" class="form-control" autocomplete="off" required />
                 </div>

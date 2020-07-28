@@ -87,6 +87,8 @@ Route::group(['middleware' => ['auth']], function() {
     Route::delete('penjualan/{id}', 'Selling\SellingController@destroy');
 
     Route::get('laporan', 'ReportController@index');
+    Route::get('laporan/hutang', 'ReportController@hutang');
+    Route::get('laporan/piutang', 'ReportController@piutang');
 
     Route::post('/logout', 'Auth\LoginController@logout')->name('logout');
 });

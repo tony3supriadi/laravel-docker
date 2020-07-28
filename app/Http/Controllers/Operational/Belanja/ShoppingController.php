@@ -288,7 +288,8 @@ class ShoppingController extends Controller
         $data = Supplier::create([
             'branch_id'=> Auth::user()->branch_id != 0 ? Auth::user()->branch_id : 1,
             'bank_id' => 1,
-            'name' => $request->name
+            'name' => $request->name,
+            'companies' => $request->companies
         ]);
         return back()->with('id', $data->id);
     }
