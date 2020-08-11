@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\Employee;
 use App\Models\EmployeeSalary;
+use App\Models\OperationalOther;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Shopping;
 use App\Models\ShoppingItem;
@@ -13,24 +16,37 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 
 use Barryvdh\DomPDF\Facade as PDF;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json($this->_operasional(''));
-        // $data = array(
-        //     'title' => 'Laporan',
-        //     'actived' => 'laporan',
-        //     'reports' => $results
-        // );
+        $results = [];
+        $results['operational'] = $this->_operasional($request->m);
+        $results['penjualan'] = $this->_penjualan($request->m);
 
-        // if ($request->exportTo) {
-        //     header("Content-type: application/vnd-ms-excel");
-        //     header("Content-Disposition: attachment; filename=laporan-laba-rugi-".date('Ymd').time().".xls");
-        //     return view('pages.report.excel', $data);
-        // }
-        // return view('pages.report.index', $data);
+        // return response()->json($results);
+
+        $data = array(
+            'title' => 'Laporan',
+            'actived' => 'laporan',
+            'reports' => $results
+        );
+
+        if ($request->exportTo) {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=laporan-laba-rugi-".date('Ymd').time().".xls");
+            return view('pages.report._exportReport', $data);
+        } else 
+        if ($request->exportTo == 'pdf') {
+            $view = view('pages.report._exportReport', $data)->render();
+            $pdf = PDF::loadHTML($view)
+                        ->setPaper('a4', 'landscape')
+                        ->setWarnings(false);
+            return $pdf->stream('laporan-laporan-'.time().'.pdf');
+        } 
+        return view('pages.report.index', $data);
     }
 
     public function hutang(Request $request) {
@@ -72,30 +88,120 @@ class ReportController extends Controller
 
     public function piutang(Request $request) {
         $index = 0;
+        $results = [];
         $customers = Customer::orderBy('name', 'ASC')->get();
 
-        return response()->json($customers);
+        foreach($customers as $item) {
+
+            $results[$index] = [
+                "id" => $item->id,
+                "name" => $item->name,
+            ];
+
+            $w = 1;
+            $id = $item->id;
+            $start = (date('YW') - 3);
+            for($i = $start; $i <= date('YW'); $i++) {
+                $billing = DB::select("SELECT SUM(price_total) as billing 
+                                    FROM sales
+                                    WHERE YEARWEEK(created_at) < $i
+                                    AND customer_id=$id
+                                    ORDER BY YEARWEEK(created_at) ASC")[0]->billing;
+
+                $payment = DB::select("SELECT SUM(debit) as payment 
+                                    FROM sale_payments
+                                    WHERE YEARWEEK(created_at) < $i
+                                    AND customer_id=$id
+                                    ORDER BY YEARWEEK(created_at) ASC")[0]->payment;
+
+                if ($billing) {
+                    $results[$index]["minggu-".$w] = $billing - $payment;
+                } else {
+                    $nilai = Customer::find($id)->saldo_tabungan;
+                    $results[$index]["minggu-".$w] = $nilai - ($nilai * 2);
+                }
+                $w++;
+            }
+            $index++;
+        }
+
+        $data = array(
+            'title' => 'Laporan Piutang',
+            'actived' => 'laporan',
+            'customers' => $results,
+        );
+
+        if ($request->exportTo == 'excel') {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=laporan-piutang-".date('Ymd').time().".xls");
+            return view('pages.report._exportPiutang', $data);
+        } else 
+        if ($request->exportTo == 'pdf') {
+            $view = view('pages.report._exportPiutang', $data)->render();
+            $pdf = PDF::loadHTML($view)
+                        ->setPaper('a4', 'potrait')
+                        ->setWarnings(false);
+            return $pdf->stream('laporan-piutang-'.time().'.pdf');
+        } 
+
+        return view('pages.report.piutang', $data);
     }
 
     public function _operasional($month) {
-        $index = 0;
         $results = [];
-
         $results['belanja'] = $this->_belanja($month);
+        $results['gaji_karyawan'] = $this->_gaji_karyawan($month);
+        $results['other'] = $this->_operasional_lain($month);
 
         return $results;
     }
 
     private function _gaji_karyawan($month) {
+        $index = 0;
+        $results = [];
         $gaji_pokok = 0;
         $gaji_tambahan = 0;
         $gaji_total = 0;
 
         $salaries = EmployeeSalary::where('created_at', 'like', $month ? $month.'%' : date('Y-m').'%')->get();
         foreach($salaries as $item) {
-            
-        }        
-    } 
+            $results['items'][$index] = array(
+                'id' => $item->id,
+                'name' => Employee::find($item->employee_id)->name,
+                "salary" => $item->salary,
+                "salary_extra" => $item->salary_extra,
+                "salary_total" => $item->salary_total
+            );
+
+            $gaji_pokok += $item->salary;
+            $gaji_tambahan += $item->salary_extra;
+            $gaji_total += $item->salary_total;
+
+            $index++;
+        }       
+        
+        $results['total_gaji_pokok']  = $gaji_pokok;
+        $results['total_gaji_tambahan']  = $gaji_tambahan;
+        $results['total_gaji_total']  = $gaji_total;
+
+        return $results;
+    }
+
+    private function _operasional_lain($month) {
+        $index = 0;
+        $results = [];
+        $total_nominal = 0;
+
+        $operationals = OperationalOther::where('created_at', 'like', $month ? $month.'%' : date('Y-m').'%')->get();
+        foreach($operationals as $item) {
+            $results['items'][$index] = $item;
+            $total_nominal += $item->nominal;
+            $index++;
+        }       
+        
+        $results['total_nominal']  = $total_nominal;
+        return $results;
+    }
 
     private function _belanja($month) {
         $index = 1;
@@ -150,13 +256,13 @@ class ReportController extends Controller
         $total_stok_pembelian = 0;
         $total_harga_pembelian = 0;
 
-        $telors = SaleItem::where('product_id', '=', 1)
+        $telors = ShoppingItem::where('product_id', '=', 1)
                                 ->where('created_at', 'like', $month ? $month.'%' : date('Y-m').'%')
                                 ->get();
         foreach($telors as $item) {
             $results['telor']['items'][$index] = array(
                 'id' => $item->id,
-                'name' => $item->name,
+                'name' => Supplier::find($item->supplier_id)->name,
                 'stok_pembelian' => $item->qty,
                 'harga_pembelian' => $item->price,
             );
@@ -246,7 +352,7 @@ class ReportController extends Controller
         foreach($telors as $item) {
             $results['telor']['items'][$index] = array(
                 'id' => $item->id,
-                'name' => $item->name,
+                'name' => Customer::find(Sale::find($item->sale_id)->customer_id)->name,
                 'harga_modal' => $item->purchase_price,
                 'stok_terjual' => $item->qty,
                 'harga_profit' => $item->price,

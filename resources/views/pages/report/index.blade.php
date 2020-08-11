@@ -8,9 +8,9 @@
         </h2>
 
         <div class="col-md-6 text-right">
-            <a href="?exportTo=excel{{ isset($_GET['start']) ? '&start='.$_GET['start'] : '' }}{{ isset($_GET['end']) ? '&end='.$_GET['end'] : '' }}" class="btn btn-sm btn-outline-primary">
-                <i class="fa fa-file-excel-o mr-1"></i>
-                Export
+            <a href="javascript:void(0)" onclick="onEventPrint()" class="btn btn-sm rounded-pill btn-outline-primary">
+                <i class="fa fa-print mr-1"></i>
+                Print
             </a>
         </div>
     </div>
@@ -19,95 +19,531 @@
 
 @section('content')
 <section class="p-4">
-    @if(isset($_GET['status']) && ($_GET['status'] == 'lunas' || $_GET['status'] == 'hutang'))
-    <div class="row">
-        <div class="col-md-3 offset-md-9">
-            <div class="border py-2 px-3 text-right">
-                <small class="text-secondary">TOTAL {{ $_GET['status'] == 'lunas' ? 'BELANJA' : 'HUTANG' }} :</small>
-                <h3 class="no-margin-bottom">Rp{{ number_format($total, 0, ',', '.') }},-</h3>
-            </div>
-        </div>
-    </div>
-    @endif
-    <div class="row mb-0">
+<div class="row mb-0">
         <div class="col-md-1 py-1">
             FILTER : 
         </div>
         <div class="col-md-6">
-            <form action="" method="get">
-                @if(isset($_GET['status']))
-                <input type="hidden" name="status" value="{{ $_GET['status'] }}">
-                @endif
-                <div class="form-group row">
-                    <div class="col-4 px-0">
-                        <input type="date" name="start" value="{{ isset($_GET['start']) ? $_GET['start'] : date('Y').'-'.date('m').'-01' }}" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-4 px-0">
-                        <input type="date" name="end" value="{{ isset($_GET['end']) ? $_GET['end'] : date('Y-m-d') }}" timezone="Asia/Jakarta" class="form-control form-control-sm">
-                    </div>
-                    <div class="col-3">
-                        <button type="submit" class="btn btn-sm btn-primary btn-block">
-                            TAMPIL
-                        </button>
-                    </div>
-                </div>
+            <form id="filter" action="" method="get">
+                <input type="hidden" name="m"> 
             </form>
+            <div class="form-group row">
+                <div class="col-3 px-0">
+                    <?php $months = [
+                        [ 'id' => '01', 'name' => "Januari" ],
+                        [ 'id' => '02', 'name'  => "Februari" ],
+                        [ 'id' => '03', 'name'  => "Maret" ],
+                        [ 'id' => '04', 'name'  => "April" ],
+                        [ 'id' => '05', 'name'  => "Mei" ],
+                        [ 'id' => '06', 'name'  => "Juni" ],
+                        [ 'id' => '07', 'name'  => "Juli" ],
+                        [ 'id' => '08', 'name'  => "Agustus" ],
+                        [ 'id' => '09', 'name'  => "September" ],
+                        [ 'id' => '10', 'name'  => "Oktober" ],
+                        [ 'id' => '11', 'name'  => "November" ],
+                        [ 'id' => '12', 'name'  => "Desember" ],
+                    ]; ?>
+                    <select name="month" class="form-control form-control-sm">
+                        @foreach($months as $m) 
+                            <option value="{{ $m['id'] }}"
+                                @if(isset($_GET['m'])) @if(explode('-', $_GET['m'])[1] == $m['id']) selected @endif
+                                @elseif($m['id'] == date('m')) selected @endif
+                                >{{ $m['name'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-2 px-0">
+                    <select name="year" class="form-control form-control-sm">
+                        @for($i = date('m') != 1 ? date('Y') : (date('Y') - 1); 
+                            $i > ((date('m') != 1 ? date('Y') : (date('Y') - 1)) - 5); 
+                            $i--)
+                        <option value="{{ $i }}"
+                            @if(isset($_GET['m']) && explode('-', $_GET['m'])[0] == $i) selected @endif
+                            >{{ $i }}</option>
+                        @endfor
+                    </select>
+                </div>
+                <div class="col-3 pr-0">
+                    <button type="button"
+                        onclick="
+                            var month = $('select[name=month]').val();
+                            var years = $('select[name=year]').val();
+                            $('input[name=m]').val(years + '-' + month);
+
+                            event.preventDefault();
+                            document.getElementById('filter').submit();
+                        "
+                        class="btn btn-sm btn-primary btn-block">
+                        TAMPIL
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
-
-    <hr class="mt-0" />
-
-    <table class="table datatable no-ordering">
-        <thead>
-            <tr>
-                <th width="10px" class="text-center no-sort">#</th>
-                <th width="10%">KODE</th>
-                <th>PRODUK</th>
-                <th width="10%">QTY</th>
-                <th width="10%" class="text-right">OMSET</th>
-                <th width="10%" class="text-right">PROFIT</th>
-                <th width="15%">WAKTU</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php $num = 1; ?>
-            <?php $omset = 0; ?>
-            <?php $profit = 0; ?>
-            @foreach($reports as $item)
-                <?php $omset = $omset + $item->omset; ?>
-                <?php $profit = $profit + $item->profit; ?>
-
-                <tr>
-                    <td class="text-center">{{ $num }}.</td>
-                    <td>{{ $item->code }}</td>
-                    <td>{{ $item->product_name }}</td>
-                    <td>{{ $item->qty }}</td>
-                    <td class="text-right">Rp{{ number_format($item->omset, 0, ',', '.') }},-</td>
-                    <td class="text-right">Rp{{ number_format($item->profit, 0, ',', '.') }},-</td>
-                    <td>{{ Carbon\Carbon::parse($item->created_at)->format('d-m-y H:i:s') }}</td>
-                </tr>
-                <?php $num++; ?>
-            @endforeach
-        </tbody>
-    </table>
-
     <div class="row">
-        <div class="col-md-4">
-            <div class="card mt-3">
-                <div class="card-header">
-                    Keterangan :
+        <div class="col-12">
+            <div class="card card-body" id="reportContent">
+                <h1 class="mb-1 text-center">Laporan Bulan : 
+                    @foreach($months as $mon) 
+                        @if(isset($_GET['m']))
+                        @if($mon['id'] == explode('-', $_GET['m'])[1]) {{ $mon['name'] }} @endif
+                        @else
+                        @if($mon['id'] == date('m')) {{ $mon['name'] }} @endif
+                        @endif
+                    @endforeach</h1>
+                <p class="border-bottom text-center pb-2">UPDATE PADA : {{ date('d/m/Y H:i:s') }}</p>
+
+                <h4>A. OPERASIONAL</h4>
+                
+                <div class="ml-3">
+                    <h5>1. BELANJA</h5>
+
+                    <div class="ml-3">
+                        <h5>a. TELOR</h5>
+                        
+                        <div class="ml-3">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th width="30px" class="text-center">NO</th>
+                                        <th>NAMA SUPPLIER</th>
+                                        <th width="10%" class="text-center">QTY</th>
+                                        <th width="20%" class="text-right">HARGA</th>
+                                        <th width="20%" class="text-right">SUB TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $num = 1; ?>
+                                    <?php $total_belanja_telor = 0; ?>
+                                    @if(isset($reports['operational']['belanja'][0]['data_belanja']['telor']['items']))
+                                    @foreach($reports['operational']['belanja'][0]['data_belanja']['telor']['items'] as $item)
+                                    <tr>
+                                        <td class="text-center">{{ $num }}</td>
+                                        <td>{{ $item['name'] }}</td>
+                                        <td class="text-center">{{ $item['stok_pembelian'] }}</td>
+                                        <td class="text-right">Rp{{ number_format($item['harga_pembelian'], 0, ',', '.') }},-</td>
+                                        <td class="text-right">Rp{{ number_format(($item['stok_pembelian'] * $item['harga_pembelian']), 0, ',', '.') }},-</td>
+                                    </tr>
+                                    <?php $total_belanja_telor += ($item['stok_pembelian'] * $item['harga_pembelian']); ?>
+                                    <?php $num++; ?>
+                                    @endforeach
+                                    @endif
+
+                                    <tr>
+                                        <th colspan="2" class="text-right">TOTAL</th>
+                                        <th class="text-center">{{ $reports['operational']['belanja'][0]['data_belanja']['telor']['total_stok_pembelian'] }}</th>
+                                        <th class="text-right">Rp{{ number_format($reports['operational']['belanja'][0]['data_belanja']['telor']['total_harga_pembelian'], 0, ',', '.') }},-</th>
+                                        <th class="text-right">Rp{{ number_format($total_belanja_telor, 0, ',', '.') }},-</th>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h5>b. OBAT</h5>
+
+                        <div class="ml-3">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th width="30px" class="text-center">NO</th>
+                                        <th>NAMA</th>
+                                        <th width="10%" class="text-center">QTY</th>
+                                        <th width="20%" class="text-right">HARGA</th>
+                                        <th width="20%" class="text-right">SUB TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $num = 1; ?>
+                                    <?php $total_belanja_obat = 0; ?>
+                                    @foreach($reports['operational']['belanja'][1]['data_belanja']['products']['items'] as $item)
+                                    <tr>
+                                        <td class="text-center">{{ $num }}</td>
+                                        <td>{{ $item['name'] }}</td>
+                                        <td class="text-center">{{ $item['stok_pembelian'] }}</td>
+                                        <td class="text-right">Rp{{ number_format($item['harga_pembelian'], 0, ',', '.') }},-</td>
+                                        <td class="text-right">Rp{{ number_format(($item['stok_pembelian'] * $item['harga_pembelian']), 0, ',', '.') }},-</td>
+                                    </tr>
+                                    <?php $num++; ?>
+                                    <?php $total_belanja_obat += ($item['stok_pembelian'] * $item['harga_pembelian']); ?>
+                                    @endforeach
+
+                                    <tr>
+                                        <th colspan="2" class="text-right">TOTAL</th>
+                                        <th class="text-center">{{ $reports['operational']['belanja'][1]['data_belanja']['products']['total_stok_pembelian'] }}</th>
+                                        <th class="text-right">Rp{{ number_format($reports['operational']['belanja'][1]['data_belanja']['products']['total_harga_pembelian'], 0, ',', '.') }},-</th>
+                                        <th class="text-right">Rp{{ number_format($total_belanja_obat, 0, ',', '.') }},-</th>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h5>c. PAKAN</h5>
+
+                        <div class="ml-3">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th width="30px" class="text-center">NO</th>
+                                        <th>NAMA</th>
+                                        <th width="10%" class="text-center">QTY</th>
+                                        <th width="20%" class="text-right">HARGA</th>
+                                        <th width="20%" class="text-right">SUB TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php $num = 1; ?>
+                                    <?php $total_belanja_pakan = 0; ?>
+                                    @foreach($reports['operational']['belanja'][2]['data_belanja']['products']['items'] as $item)
+                                    <tr>
+                                        <td class="text-center">{{ $num }}</td>
+                                        <td>{{ $item['name'] }}</td>
+                                        <td class="text-center">{{ $item['stok_pembelian'] }}</td>
+                                        <td class="text-right">Rp{{ number_format($item['harga_pembelian'], 0, ',', '.') }},-</td>
+                                        <td class="text-right">Rp{{ number_format(($item['stok_pembelian'] * $item['harga_pembelian']), 0, ',', '.') }},-</td>
+                                    </tr>
+                                    <?php $num++; ?>
+                                    <?php $total_belanja_pakan += ($item['stok_pembelian'] * $item['harga_pembelian']); ?>
+                                    @endforeach
+
+                                    <tr>
+                                        <th colspan="2" class="text-right">TOTAL</th>
+                                        <th class="text-center">{{ $reports['operational']['belanja'][2]['data_belanja']['products']['total_stok_pembelian'] }}</th>
+                                        <th class="text-right">Rp{{ number_format($reports['operational']['belanja'][2]['data_belanja']['products']['total_harga_pembelian'], 0, ',', '.') }},-</th>
+                                        <th class="text-right">Rp{{ number_format($total_belanja_pakan, 0, ',', '.') }},-</th>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <h5>2. GAJI KARYAWAN</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th width="30px" class="text-center">NO</th>
+                                    <th>NAMA</th>
+                                    <th width="22%" class="text-right">POKOK</th>
+                                    <th width="22%" class="text-right">TAMBAHAN</th>
+                                    <th width="22%" class="text-right">TOTAL GAJI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $num = 1; ?>
+                                @if(isset($reports['operational']['gaji_karyawan']['items']))
+                                @foreach($reports['operational']['gaji_karyawan']['items'] as $item)
+                                <tr>
+                                    <td class="text-center">{{ $num }}</td>
+                                    <td>{{ $item['name'] }}</td>
+                                    <td class="text-right">Rp{{ number_format($item['salary'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['salary_extra'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['salary_total'], 0, ',', '.') }},-</td>
+                                </tr>
+                                <?php $num++; ?>
+                                @endforeach
+                                @endif
+
+                                <tr>
+                                    <th colspan="2" class="text-right">TOTAL</th>
+                                    <th class="text-right">Rp{{ number_format($reports['operational']['gaji_karyawan']['total_gaji_pokok'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['operational']['gaji_karyawan']['total_gaji_tambahan'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['operational']['gaji_karyawan']['total_gaji_total'], 0, ',', '.') }},-</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>3. LAINNYA</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th width="30px" class="text-center">NO</th>
+                                    <th>DESKRIPSI</th>
+                                    <th width="30%" class="text-right">NOMINAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $num = 1; ?>
+                                @if(isset($reports['operational']['other']['items']))
+                                @foreach($reports['operational']['other']['items'] as $item)
+                                <tr>
+                                    <td class="text-center">{{ $num }}</td>
+                                    <td>{{ $item['description'] }}</td>
+                                    <td class="text-right">Rp{{ number_format($item['nominal'], 0, ',', '.') }},-</td>
+                                </tr>
+                                <?php $num++; ?>
+                                @endforeach
+                                @endif
+
+                                <tr>
+                                    <th colspan="2" class="text-right">TOTAL</th>
+                                    <th class="text-right">Rp{{ number_format($reports['operational']['other']['total_nominal'], 0, ',', '.') }},-</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>4. RINGKASAN</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-bordered table-sm">
+                            <tr>
+                                <th>1. TOTAL BELANJA</th>
+                                <td class="text-right">
+                                    <?php $total_belanja = $total_belanja_telor
+                                                            + $total_belanja_pakan
+                                                            + $total_belanja_obat; ?>
+                                    Rp{{ number_format($total_belanja, 0, ',', '.') }},-
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>2. TOTAL GAJI KARYAWAN</th>
+                                <td class="text-right">Rp{{ number_format($reports['operational']['gaji_karyawan']['total_gaji_total'], 0, ',', '.') }},-</td>
+                            </tr>
+                            <tr>
+                                <th>3. TOTAL LAINNYA</th>
+                                <td class="text-right">Rp{{ number_format($reports['operational']['other']['total_nominal'], 0, ',', '.') }},-</td>
+                            </tr>
+                            <tr>
+                                <th>TOTAL OPERASIONAL</th>
+                                <th class="text-right">
+                                    <?php $total_operasional = $total_belanja 
+                                                    + $reports['operational']['gaji_karyawan']['total_gaji_total']
+                                                    + $reports['operational']['other']['total_nominal']; ?>
+                                    Rp{{ number_format($total_operasional, 0, ',', '.') }},-
+                                </th>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
-                <div class="card-body p-0">
-                    <table class="table mb-0">
+
+                <h4>B. PENJUALAN</h4>
+
+                <div class="ml-3">
+                    <h5>1. TELOR</h5>
+                    
+                    <div class="ml-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th width="30px" class="text-center">NO</th>
+                                    <th>NAMA PELANGGAN</th>
+                                    <th width="10%" class="text-center">QTY</th>
+                                    <th width="18%" class="text-right">HARGA MODAL</th>
+                                    <th width="18%" class="text-right">OMSET</th>
+                                    <th width="18%" class="text-right">PROFIT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $num = 1; ?>
+                                @if(isset($reports['penjualan'][0]['data_penjualan']['telor']['items']))
+                                @foreach($reports['penjualan'][0]['data_penjualan']['telor']['items'] as $item)
+                                <tr>
+                                    <td class="text-center">{{ $num }}</td>
+                                    <td>{{ $item['name'] }}</td>
+                                    <td class="text-center">{{ $item['stok_terjual'] }}</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_modal'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_omset'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_profit'], 0, ',', '.') }},-</td>
+                                </tr>
+                                <?php $num++; ?>
+                                @endforeach
+                                @endif
+                                
+                                <tr>
+                                    <th colspan="2" class="text-right">TOTAL</th>
+                                    <th class="text-center">{{ $reports['penjualan'][0]['data_penjualan']['telor']['total_stok_terjual'] }}</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][0]['data_penjualan']['telor']['total_harga_modal'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][0]['data_penjualan']['telor']['total_harga_omset'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][0]['data_penjualan']['telor']['total_harga_profit'], 0, ',', '.') }},-</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>2. OBAT</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th width="30px" class="text-center">NO</th>
+                                    <th>NAMA</th>
+                                    <th width="10%" class="text-center">QTY</th>
+                                    <th width="18%" class="text-right">HARGA MODAL</th>
+                                    <th width="18%" class="text-right">OMSET</th>
+                                    <th width="18%" class="text-right">PROFIT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $num = 1; ?>
+                                @foreach($reports['penjualan'][1]['data_penjualan']['products']['items'] as $item)
+                                <tr>
+                                    <td class="text-center">{{ $num }}</td>
+                                    <td>{{ $item['name'] }}</td>
+                                    <td class="text-center">{{ $item['stok_terjual'] }}</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_modal'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_omset'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_profit'], 0, ',', '.') }},-</td>
+                                </tr>
+                                <?php $num++; ?>
+                                @endforeach
+                                
+                                <tr>
+                                    <th colspan="2" class="text-right">TOTAL</th>
+                                    <th class="text-center">{{ $reports['penjualan'][1]['data_penjualan']['products']['total_stok_terjual'] }}</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][1]['data_penjualan']['products']['total_harga_modal'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][1]['data_penjualan']['products']['total_harga_omset'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][1]['data_penjualan']['products']['total_harga_profit'], 0, ',', '.') }},-</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>3. PAKAN</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th width="30px" class="text-center">NO</th>
+                                    <th>NAMA</th>
+                                    <th width="10%" class="text-center">QTY</th>
+                                    <th width="18%" class="text-right">HARGA MODAL</th>
+                                    <th width="18%" class="text-right">OMSET</th>
+                                    <th width="18%" class="text-right">PROFIT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $num = 1; ?>
+                                @foreach($reports['penjualan'][2]['data_penjualan']['products']['items'] as $item)
+                                <tr>
+                                    <td class="text-center">{{ $num }}</td>
+                                    <td>{{ $item['name'] }}</td>
+                                    <td class="text-center">{{ $item['stok_terjual'] }}</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_modal'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_omset'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_profit'], 0, ',', '.') }},-</td>
+                                </tr>
+                                <?php $num++; ?>
+                                @endforeach
+                                
+                                <tr>
+                                    <th colspan="2" class="text-right">TOTAL</th>
+                                    <th class="text-center">{{ $reports['penjualan'][2]['data_penjualan']['products']['total_stok_terjual'] }}</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][2]['data_penjualan']['products']['total_harga_modal'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][2]['data_penjualan']['products']['total_harga_omset'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][2]['data_penjualan']['products']['total_harga_profit'], 0, ',', '.') }},-</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>4. KONSENTRAT</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th width="30px" class="text-center">NO</th>
+                                    <th>NAMA</th>
+                                    <th width="10%" class="text-center">QTY</th>
+                                    <th width="18%" class="text-right">HARGA MODAL</th>
+                                    <th width="18%" class="text-right">OMSET</th>
+                                    <th width="18%" class="text-right">PROFIT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php $num = 1; ?>
+                                @foreach($reports['penjualan'][3]['data_penjualan']['products']['items'] as $item)
+                                <tr>
+                                    <td class="text-center">{{ $num }}</td>
+                                    <td>{{ $item['name'] }}</td>
+                                    <td class="text-center">{{ $item['stok_terjual'] }}</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_modal'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_omset'], 0, ',', '.') }},-</td>
+                                    <td class="text-right">Rp{{ number_format($item['harga_profit'], 0, ',', '.') }},-</td>
+                                </tr>
+                                <?php $num++; ?>
+                                @endforeach
+                                
+                                <tr>
+                                    <th colspan="2" class="text-right">TOTAL</th>
+                                    <th class="text-center">{{ $reports['penjualan'][3]['data_penjualan']['products']['total_stok_terjual'] }}</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][3]['data_penjualan']['products']['total_harga_modal'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][3]['data_penjualan']['products']['total_harga_omset'], 0, ',', '.') }},-</th>
+                                    <th class="text-right">Rp{{ number_format($reports['penjualan'][3]['data_penjualan']['products']['total_harga_profit'], 0, ',', '.') }},-</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>5. RINGKASAN</h5>
+
+                    <div class="ml-3">
+                        <table class="table table-bordered table-sm">
+                            <tr>
+                                <th>1. TOTAL PENJUALAN TELOR</th>
+                                <td class="text-right">
+                                    Rp{{ number_format($reports['penjualan'][0]['data_penjualan']['telor']['total_harga_modal'], 0, ',', '.') }},-
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>2. TOTAL PENJUALAN OBAT</th>
+                                <td class="text-right">
+                                    Rp{{ number_format($reports['penjualan'][1]['data_penjualan']['products']['total_harga_modal'], 0, ',', '.') }},-
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>3. TOTAL PENJUALAN PAKAN</th>
+                                <td class="text-right">
+                                    Rp{{ number_format($reports['penjualan'][2]['data_penjualan']['products']['total_harga_modal'], 0, ',', '.') }},-
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>4. TOTAL PENJUALAN KONSENTRAT</th>
+                                <td class="text-right">
+                                    Rp{{ number_format($reports['penjualan'][3]['data_penjualan']['products']['total_harga_modal'], 0, ',', '.') }},-
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>TOTAL PENJUALAN</th>
+                                <th class="text-right">
+                                    <?php $total_penjualan = $reports['penjualan'][0]['data_penjualan']['telor']['total_harga_modal']
+                                                    + $reports['penjualan'][1]['data_penjualan']['products']['total_harga_modal']
+                                                    + $reports['penjualan'][2]['data_penjualan']['products']['total_harga_modal']
+                                                    + $reports['penjualan'][3]['data_penjualan']['products']['total_harga_modal']; ?>
+                                    Rp{{ number_format($total_penjualan, 0, ',', '.') }},-
+                                </th>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <h4>C. RINGKASAN</h4>
+
+                <div class="ml-3">
+                    <table class="table table-bordered table-sm">
                         <tr>
-                            <td width="40%">TOTAL OMSET</td>
-                            <td width="5px">:</td>
-                            <td>Rp{{ number_format($omset, 0, ",", ".") }},-</td>
+                            <th>PENJUALAN</th>
+                            <td class="text-right">
+                                Rp{{ number_format($total_penjualan, 0, ',', '.') }},-
+                            </td>
                         </tr>
                         <tr>
-                            <td width="30%">TOTAL PROFIT</td>
-                            <td width="5px">:</td>
-                            <td>Rp{{ number_format($profit, 0, ",", ".") }}</td>
+                            <th>OPERASIONAL</th>
+                            <td class="text-right">
+                                Rp{{ number_format($total_operasional, 0, ',', '.') }},-
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>OMSET</th>
+                            <th class="text-right">
+                                Rp{{ number_format($total_penjualan - $total_operasional, 0, ',', '.') }},-
+                            </th>
                         </tr>
                     </table>
                 </div>
@@ -125,4 +561,15 @@
 <script src="{{ asset('vendor/datatable/js/jquery.dataTables.min.js')}}"></script>
 <script src="{{ asset('vendor/datatable/js/dataTables.bootstrap4.min.js')}}"></script>
 <script src="{{ asset('js/init/datatable.init.js')}}"></script>
+
+<script>
+function onEventPrint() {
+    var printContents = document.getElementById('reportContent').innerHTML;
+    var originalContents = document.body.innerHTML;
+    document.body.innerHTML = printContents;
+    
+    window.print();
+    document.body.innerHTML = originalContents;
+}
+</script>
 @endsection

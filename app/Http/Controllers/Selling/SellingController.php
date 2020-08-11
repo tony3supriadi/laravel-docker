@@ -147,6 +147,10 @@ class SellingController extends Controller
                 $sisa_pembayaran = $request->payment - $request->total;
                 $customer->saldo_tabungan = $sisa_pembayaran;
                 $customer->save();
+            } else
+            if ($request->metodePembayaran == 'tunai' && $request->payment == 0) {
+                $customer->saldo_tabungan = $customer->saldo_tabungan - $request->total;
+                $customer->save();
             }
 
             if ($request->metodePembayaran == 'barter') {

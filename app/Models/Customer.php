@@ -21,6 +21,6 @@ class Customer extends Model
     protected $fillable = [
         'group_id', 'name', 'address', 'regency_id',
         'province_id', 'postcode', 'email', 'phone',
-        'description'
+        'description', 'saldo_tabungan'
     ];
 }

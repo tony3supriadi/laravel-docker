@@ -161,6 +161,23 @@
                 </div>
 
                 <div class="form-group row">
+                    <label for="saldo_tabungan" class="col-md-3 text-right" style="line-height: 16px;padding:5px 0">
+                        SALDO TABUNGAN/HUTANG :
+                        <small class="text-muted">Hutang = nilai minus</small>
+                    </label>
+                    
+                    <div class="col-md-6">
+                        <input type="number" name="saldo_tabungan" value="{{ old('saldo_tabungan') ? old('saldo_tabungan') : 0 }}" class="form-control @error('saldo_tabungan') is-invalid @enderror" autofocus autocomplete="off">
+
+                        @error('saldo_tabungan')
+                            <span class="invalid-feedback d-block">
+                                <strong>{{ $message }}</strong>
+                            </span>    
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="form-group row">
                     <div class="text-right col-md-9">
                         <button type="reset" class="btn btn-secondary">
                             <i class="fa fa-undo mr-2"></i>Reset
