@@ -20,6 +20,7 @@ class Sale extends Model
      */
     protected $fillable = [
         'invoice', 'customer_id', 'branch_id', 'price_total',
-        'status', 'description'
+        'status', 'description', 'is_barter', 'jml_barter',
+        'metode_pembayaran'
     ];
 }

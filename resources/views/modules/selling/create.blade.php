@@ -284,13 +284,19 @@
                                     "
                                     class="form-control select2">
                                     <option value="tunai">Uang Tunai</option>
-                                    <option value="tabungan">Tabungan</option>
+                                    @if(Session::get('customer'))
+                                        @if(Session::get('customer')->saldo_tabungan != 0) 
+                                            <option value="tabungan" selected>Tabungan</option>
+                                        @endif
+                                    @else
+                                        <option value="tabungan">Tabungan</option>
+                                    @endif
                                     <option value="barter">Barter</option>
                                 </select>
                             </div>
                             <div id="payment" class="form-group mb-2">
                                 <label for="payment" class="mb-0">Jumlah Pembayaran</label>
-                                <input type="text" name="payment" value="0" class="form-control text-right" autofocus="off" />
+                                <input type="text" name="payment" value="{{ Session::get('customer') ? Session::get('customer')->saldo_tabungan != 0 ? Session::get('customer')->saldo_tabungan : 0 : 0 }}" class="form-control text-right" autofocus="off" {{ Session::get('customer') ? Session::get('customer')->saldo_tabungan != 0 ? 'readonly' : '' : '' }} />
                             </div>
                             
                             <div id="barter" class="d-none">

@@ -197,6 +197,13 @@
                             </a>
                         </li>
                         @endcan
+
+                        <li>
+                            <a href="{{ url('pelanggan/catatan-tabungan') }}">
+                                <i class="fa fa-angle-double-right"></i>
+                                Catatan Tabungan
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 @endif

@@ -45,6 +45,9 @@ Route::group(['middleware' => ['auth']], function() {
 
     Route::resource('pelanggan/grup', 'Master\Pelanggan\GroupController')
         ->except('create');
+    
+    Route::resource('pelanggan/catatan-tabungan', 'Master\Pelanggan\SavingController')
+        ->only('index', 'create', 'store');
 
     Route::get('pelanggan/{id}/tabungan', 'Master\Pelanggan\CustomerController@riwayat');
     Route::post('pelanggan/create-group', 'Master\Pelanggan\CustomerController@create_group');

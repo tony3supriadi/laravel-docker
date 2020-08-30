@@ -20,6 +20,6 @@ class SalePayment extends Model
      */
     protected $fillable = [
         'sale_id', 'customer_id', 'billing', 
-        'payment', 'debit','description'
+        'payment', 'debit','description', 'metode_pembayaran'
     ];
 }

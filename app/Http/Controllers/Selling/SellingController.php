@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\ProductPrice as Price;
 use App\Models\Company;
+use App\Models\CustomerSaving;
 use App\Models\Shopping;
 use App\Models\ShoppingItem;
 use App\Models\ShoppingPayment;
@@ -140,9 +141,45 @@ class SellingController extends Controller
         if ($validate->fails()) {
             return back()->withInput()->withErrors($validate);
         } else {
-
-            $customer = Customer::find($request->customer_id);
             $inv = time();
+            $customer = Customer::find($request->customer_id);
+            
+            $sale = Sale::create([
+                'invoice' => $inv,
+                'customer_id' => $request->customer_id,
+                'branch_id' => Auth::user()->branch_id != 0 
+                                    ? Auth::user()->branch_id
+                                    : 1,
+                'price_total' => $request->total,
+                'status' => $request->payment >= $request->total ? 'Lunas' : 'Piutang',
+                'description' => $request->description,
+                'is_barter' => $request->metodePembayaran == 'barter' ? true : false,
+                'jml_barter' => $request->jumlah_barang_barter,
+                'metode_pembayaran' => $request->metodePembayaran
+            ]);
+
+            CustomerSaving::create([
+                'customer_id' => $request->customer_id,
+                'code' => time(),
+                'description' => 'PEMBELIAN (INV-'.$sale->invoice.')',
+                'status' => 'Debit',
+                'nominal' => $request->total,
+                'saldo' => ($customer->saldo_tabungan - $request->total)
+            ]);
+
+            if (($request->payment - Cart::getTotal()) > 0 
+                && $request->metodePembayaran == 'tunai') {
+                    
+                CustomerSaving::create([
+                    'customer_id' => $request->customer_id,
+                    'code' => time(),
+                    'description' => 'PEMBAYARAN (INV-'.$sale->invoice.')',
+                    'status' => 'Kredit',
+                    'nominal' => $request->total,
+                    'saldo' => $customer->saldo_tabungan
+                ]);
+            }
+
             if ($request->metodePembayaran == 'tabungan') {
                 $sisa_pembayaran = $request->payment - $request->total;
                 $customer->saldo_tabungan = $sisa_pembayaran;
@@ -158,6 +195,9 @@ class SellingController extends Controller
                 $product->stock = $product->stock + $request->jumlah_barang_barter;
                 $product->save();
 
+                $customer->saldo_tabungan = $customer->saldo_tabungan - $request->total;
+                $customer->save();
+
                 ProductStock::create([
                     'product_id' => $request->barang_barter,
                     'branch_id' => Auth::user()->branch_id != 0 
@@ -169,20 +209,6 @@ class SellingController extends Controller
                     'description' => 'Stock Barter dari '.$customer->name.' (INV-'.$inv.')'
                 ]);
             }
-
-
-            $sale = Sale::create([
-                'invoice' => $inv,
-                'customer_id' => $request->customer_id,
-                'branch_id' => Auth::user()->branch_id != 0 
-                                    ? Auth::user()->branch_id
-                                    : 1,
-                'price_total' => $request->total,
-                'status' => $request->payment >= $request->total ? 'Lunas' : 'Piutang',
-                'description' => $request->description,
-                'is_barter' => $request->metodePembayaran == 'barter' ? true : false,
-                'jml_barter' => $request->jumlah_barang_barter
-            ]);
 
             foreach(Cart::getContent() as $item) {
                 SaleItem::create([
@@ -219,7 +245,8 @@ class SellingController extends Controller
                 'billing' => Cart::getTotal(),
                 'payment' => $request->payment,
                 'debit' => $request->payment,
-                'description' => 'PAYMENT-'.time().' ('.strtoupper($request->status).')'
+                'description' => 'PAYMENT-'.time().' ('.strtoupper($request->status).')',
+                'metode_pembayaran' => $request->metodePembayaran
             ]);
 
             Cart::clear();
@@ -304,47 +331,83 @@ class SellingController extends Controller
 
     public function createPayment(Request $request)
     {
-        $data = $request->all();
-        $data['payment'] = $data['payment'] + $data['debit'];
-        $pay = SalePayment::create($data);
+        $customer = Customer::find($request->customer_id);
+        if ($request->metode_pembayaran == 'tabungan') {
 
-        if ($pay->billing <= $pay->payment) {
+            $debit = ($request->debit > $request->billing)
+                ? ($request->billing - $request->payment)
+                : $request->debit;
+            SalePayment::create([
+                'sale_id' => $request->sale_id, 
+                'customer_id' => $request->customer_id, 
+                'billing' => $request->billing, 
+                'payment' => ($request->payment + $debit), 
+                'debit' => $debit,
+                'description' => $request->description,
+                'metode_pembayaran' => 'tabungan'
+            ]);
+
+            CustomerSaving::create([
+                'customer_id' => $request->customer_id,
+                'code' => time(),
+                'description' => 'PEMBAYARAN HUTANG (INV-'.Sale::find($request->sale_id)->invoice.')',
+                'status' => 'Debit',
+                'nominal' => $debit,
+                'saldo' => ($customer->saldo_tabungan - $debit)
+            ]);
+
+            $customer->saldo_tabungan = ($customer->saldo_tabungan - $debit);
+            $customer->save();
+        } else {
+            $data = $request->all();
+            $data['payment'] = $data['payment'] + $data['debit'];
+
+            $pay = SalePayment::create($data);
             $sale = Sale::find($pay->sale_id);
-            $sale->status = "Lunas";
-            $sale->save();
+            
+            if ($pay->billing <= $pay->payment) {
+                $sale->status = "Lunas";
+                $sale->save();
+            }
+
+            if ($pay->billing < $pay->payment) {
+                $nominal = $request->debit - ($pay->payment - $pay->billing);
+                $saldo = $customer->saldo_tabungan + $nominal;
+
+                CustomerSaving::create([
+                    'customer_id' => $data['customer_id'],
+                    'code' => time(),
+                    'description' => 'PEMBAYARAN HUTANG (INV-'.$sale->invoice.')',
+                    'status' => 'Kredit',
+                    'nominal' => $nominal,
+                    'saldo' => $saldo
+                ]);
+
+                $customer->saldo_tabungan = $saldo;
+                $customer->save();
+            } else {
+                $saldo = $customer->saldo_tabungan + $request->debit;
+
+                CustomerSaving::create([
+                    'customer_id' => $data['customer_id'],
+                    'code' => time(),
+                    'description' => 'PEMBAYARAN HUTANG (INV-'.$sale->invoice.')',
+                    'status' => 'Kredit',
+                    'nominal' => $request->debit,
+                    'saldo' => $saldo
+                ]);
+                
+                $customer->saldo_tabungan = $saldo;
+                $customer->save();
+            }
         }
 
-        $sale = Sale::find($request->sale_id);
-        if ($sale->is_barter) {
-            $shopping = Shopping::create([
-                'supplier_id' => 1,
-                'invoice' => time(),
-                'price_total' => $request->debit,
-                'status' => 'Lunas',
-                'description' => 'Belanja Pembayaran Telor Barter INV-'.$sale->invoice,
-            ]);
-
-            ShoppingItem::create([
-                'shopping_id' => $shopping->id,
-                'supplier_id' => 1,
-                'product_id' => 1,
-                'price' => ($request->debit / $sale->jml_barter),
-                'qty' => $sale->jml_barter,
-                'sub_total' => $request->debit,
-                'description' => 'Belanja Pembayaran Telor Barter INV-'.$sale->invoice,
-            ]);
-
-            ShoppingPayment::create([
-                'shopping_id' => $shopping->id,
-                'supplier_id' => 1,
-                'billing' => $request->debit,
-                'payment' => $request->debit,
-                'debit' => $request->debit,
-                'description' => 'PAYMENT-'.time().' ('.strtoupper($request->status).')'
-            ]);
-        }
-
-        return back()->with('backPayment', $request->debit > $request->billing ? true : false);
+        $this->is_barter_payment($request, $sale);
+        return back()
+            ->with(
+                'backPayment', 
+                ($data['payment'] > $request->billing) 
+                ? true : false);
     }
 
     public function createCustomer(Request $request)
@@ -397,7 +460,9 @@ class SellingController extends Controller
                 ]
             ]);
         } 
-        return back()->with('id', $id);
+        return back()
+            ->with('id', $id)
+            ->with('customer', $customer);
     }
 
     public function destroyCart($index = null)
@@ -409,9 +474,99 @@ class SellingController extends Controller
     public function simpanTabungan(Request $request, $id)
     {
         $data = Customer::find(decrypt($id));
-        $data->saldo_tabungan = $data->saldo_tabungan + $request->saldo_tabungan;
-        $data->save();
+        
+        if ($data->saldo_tabungan >= 0) {
+            $data->saldo_tabungan = $data->saldo_tabungan + $request->saldo_tabungan;
+            $data->save();
+            
+            CustomerSaving::create([
+                'customer_id' => $data->id,
+                'code' => time(),
+                'description' => 'SIMPAN KEMBALIAN (INV-'.$request->invoice.')',
+                'status' => 'Kredit',
+                'nominal' => $request->saldo_tabungan,
+                'saldo' => $data->saldo_tabungan
+            ]);
+        } else {
+            $sales = Sale::where('customer_id', '=', $data->id)
+                ->where('status', '=', 'Piutang')
+                ->get();
 
+            if (count($sales)) {
+
+                $sisa_pembayaran = $request->saldo_tabungan;
+                foreach($sales as $sale) {
+
+                    $payment = SalePayment::where('sale_id', '=', $sale->id)->sum('payment');
+                    $debit = ($request->saldo_tabungan > $sale->price_total)
+                                ? $sale->price_total 
+                                : $sisa_pembayaran;
+
+                    if ($sisa_pembayaran > 0) {
+                        $data->saldo_tabungan = $data->saldo_tabungan + $debit;
+                        $data->save();
+
+                        $saleP = SalePayment::create([
+                            'sale_id' => $sale->id, 
+                            'customer_id' => $data->id, 
+                            'billing' => $sale->price_total, 
+                            'payment' => $payment + $debit, 
+                            'debit' => $debit,
+                            'description' => 'KEMBALIAN INV-'.$request->invoice, 
+                            'metode_pembayaran' => 'tabungan'
+                        ]);
+
+                        CustomerSaving::create([
+                            'customer_id' => $data->id,
+                            'code' => time(),
+                            'description' => 'PEMBAYARAN HUTANG (INV-'.$sale->invoice.')',
+                            'status' => 'Kredit',
+                            'nominal' => $sisa_pembayaran,
+                            'saldo' => $data->saldo_tabungan
+                        ]);
+
+                        if ($saleP->billing < $saleP->payment) {
+                            $up = Sale::find($sale->id);
+                            $up->status = 'Lunas';
+                            $up->save();
+                        }
+                    }
+                    $sisa_pembayaran = $sisa_pembayaran - $sale->price_total;
+                }
+            }
+        }
         return back();
+    }
+
+    private function is_barter_payment($request, $sale)
+    {   
+        if ($sale->is_barter) {
+            $shopping = Shopping::create([
+                'supplier_id' => 1,
+                'invoice' => time(),
+                'price_total' => $request->debit,
+                'status' => 'Lunas',
+                'description' => 'Belanja Pembayaran Telor Barter INV-'.$sale->invoice,
+            ]);
+
+            ShoppingItem::create([
+                'shopping_id' => $shopping->id,
+                'supplier_id' => 1,
+                'product_id' => 1,
+                'price' => ($request->debit / $sale->jml_barter),
+                'qty' => $sale->jml_barter,
+                'sub_total' => $request->debit,
+                'description' => 'Belanja Pembayaran Telor Barter INV-'.$sale->invoice,
+            ]);
+
+            ShoppingPayment::create([
+                'shopping_id' => $shopping->id,
+                'supplier_id' => 1,
+                'billing' => $request->debit,
+                'payment' => $request->debit,
+                'debit' => $request->debit,
+                'description' => 'PAYMENT-'.time().' ('.strtoupper($request->status).')'
+            ]);
+        }
     }
 }

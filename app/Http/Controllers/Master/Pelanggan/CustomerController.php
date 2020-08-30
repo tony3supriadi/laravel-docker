@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Master\Pelanggan;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 use App\Models\Customer;
 use App\Models\CustomerGroups as Group;
+use App\Models\CustomerSaving;
 use App\Models\Regency;
 use App\Models\Provincy;
 use App\Models\Sale;
@@ -93,6 +95,14 @@ class CustomerController extends Controller
             return back()->withInput()->withErrors($validate);
         } else {
             $data = Customer::create($request->all());
+            CustomerSaving::create([
+                'customer_id' => $data->id,
+                'code' => time(),
+                'description' => 'SALDO AWAL',
+                'status' => 'Kredit',
+                'nominal' => $data->saldo_tabungan,
+                'saldo' => $data->saldo_tabungan
+            ]);
             return redirect('pelanggan')->with('success', true);
         }
     }
@@ -110,18 +120,36 @@ class CustomerController extends Controller
             'actived' => 'master-pelanggan',
             'customer' => Customer::select('customers.*')
                 ->where('customers.id', '=', decrypt($id))
-                ->first()
+                ->first(),
+            'savings' => CustomerSaving::where('customer_id', '=', decrypt($id))
+                ->orderBy('id', 'DESC')->get()
         );
         return view('modules.master.customer.show', $data);
     }
 
-    public function riwayat($id) 
+    public function riwayat(Request $request, $id) 
     {
+        $between = $request->start ?
+            [$request->start . ' 00:00:00', $request->end . ' 23.59.59'] :
+            [date('Y-m').'-1 00:00:00', date('Y-m-d').' 23:59:59'];
+
         $data = array(
             'title' => 'Pelanggan',
             'actived' => 'master-pelanggan',
-            'customer' => Customer::find(decrypt($id))
+            'customer' => Customer::find(decrypt($id)),
+
+            'company' => Company::find(1),
+            'savings' => CustomerSaving::whereBetween('customer_savings.created_at', $between)
+                            ->where('customer_id', '=', decrypt($id))
+                            ->orderBy('id', 'DESC')->get()
         );
+
+        if ($request->exportTo) {
+            header("Content-type: application/vnd-ms-excel");
+            header("Content-Disposition: attachment; filename=riwayat-transaksi-".strtolower(Customer::find(decrypt($id))->name)."-".date('Ymd').time().".xls");
+            return view('modules.master.customer.riwayatExcel', $data);
+        }
+
         return view('modules.master.customer.riwayat', $data);
     }
 

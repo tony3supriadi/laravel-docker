@@ -100,7 +100,7 @@
                             <td width="5px">{{ $num }}.</td>
                             <td width="20%">{{ Carbon\Carbon::parse($item->created_at)->format('d M Y') }}</td>
                             <td width="50%">{{ $item->description }}</td>
-                            <td class="text-right">{{ number_format($item->debit, 0, ',', '.') }}</td>
+                            <td class="text-right">{{ $item->debit > 0 ? number_format($item->debit, 0, ',', '.') : 0 }}</td>
                         </tr>
                         <?php $payment = $item->payment ?>
                         <?php $num++; ?>
@@ -108,7 +108,7 @@
                         <tfoot>
                             <tr>
                                 <th colspan="3" class="text-right">TOTAL :</th>
-                                <td class="text-right">{{ number_format($payment, 0, ',', '.') }}</td>
+                                <td class="text-right">{{ $payment > 0 ? number_format($payment, 0, ',', '.') : 0 }}</td>
                             </tr>
 
                             @if($last->payment > $last->billing)
@@ -116,6 +116,15 @@
                                 <th colspan="3" class="text-right">UANG KEMBALIAN :</th>
                                 <td class="text-right">
                                     {{ number_format(($last->payment - $last->billing), 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @endif
+
+                            @if($last->payment < $last->billing)
+                            <tr>
+                                <th colspan="3" class="text-right">SISA :</th>
+                                <td class="text-right">
+                                    {{ number_format(($last->billing - $last->payment), 0, ',', '.') }}
                                 </td>
                             </tr>
                             @endif
@@ -158,13 +167,38 @@
                     <tr>
                         <th width="20%" class="text-right">TERBAYAR</th>
                         <th width="5px">:</th>
-                        <td class="text-right">Rp{{ number_format($last->payment, 0, ',', '.') }},-</td>
+                        <td class="text-right">Rp{{ $last->payment > 0 ? number_format($last->payment, 0, ',', '.') : 0 }},-</td>
                     </tr>
                     <tr>
                         <th width="20%" class="text-right">KEKURANGAN</th>
                         <th width="5px">:</th>
-                        <td class="text-right">Rp{{ number_format(($last->billing - $last->payment), 0, ',', '.') }},-</td>
+                        <td class="text-right">Rp{{ $last->payment > 0 ? number_format(($last->billing - $last->payment), 0, ',', '.') : number_format(($last->billing), 0, ',', '.') }},-</td>
                     </tr>
+
+                    @if(DB::table('customers')->where('id', '=', $sale->customer_id)->first()->saldo_tabungan > 0)
+                    <tr>
+                        <th width="20%" class="align-middle text-right">PEMBAYARAN</th>
+                        <th width="5px" class="align-middle">:</th>
+                        <td>
+                            <select name="metode_pembayaran" class="form-control" onchange="
+                                if ($(this).val() == 'tunai') {
+                                    $('input[name=debit]')
+                                        .val(0)
+                                        .removeAttr('readonly');
+                                } else {
+                                    $.get('/api/customer/{{ $sale->customer_id }}', function(data) {
+                                        $('input[name=debit]')
+                                        .val(data.saldo_tabungan)
+                                        .attr('readonly', '');
+                                    });
+                                }
+                            ">
+                                <option value="tunai">Tunai</option>
+                                <option value="tabungan">Tabungan</option>
+                            </select>
+                        </td>
+                    </tr>
+                    @endif
 
                     <tr>
                         <th class="align-middle text-right">PEMBAYARAN</th>
@@ -234,6 +268,27 @@
                                 </thead>
                                 <tbody>
                                 <?php $total = 0; ?>
+                                @if(DB::table('sale_payments')
+                                    ->where('sale_id', '=', $sale->id)
+                                    ->orderBy('id', 'DESC')
+                                    ->first()
+                                    ->metode_pembayaran == 'tabungan') 
+                                <tr>
+                                    <td colspan="3">
+                                        @if($sale->is_barter)
+                                        <i>PENJUALAN {{ $sale->jml_barter }} KOTAK TELOR</i>
+                                        @else
+                                        <i>JUMLAH TABUNGAN</i>
+                                        @endif
+                                    </td>
+                                    <td class="text-right">
+                                        <i>{{ number_format(DB::table('sale_payments')
+                                                ->where('sale_id', '=', $sale->id)
+                                                ->orderBy('id', 'DESC')
+                                                ->first()->payment, 0, ',', '.') }}</i></td>
+                                </tr>
+                                @endif
+
                                 @foreach($sale['items'] as $item)
                                 <tr>
                                     <td>{{ $item->name }}</td>
@@ -246,8 +301,9 @@
 
                                 @if($sale->is_barter)
                                 <tr>
-                                    <td colspan="4">
-                                        {{ $sale->description }}
+                                    <td colspan="4" style="background-color: #ddd;">
+                                        <b>CATATAN :</b> <br />
+                                        {{ $sale->description ? $sale->description : $sale->jml_barter . ' peti telor' }}
                                     </td>
                                 </tr>
                                 @endif
@@ -263,10 +319,21 @@
                                     <th colspan="3" class="text-right">TOTAL :</th>
                                     <th class="text-right">{{ number_format($total, 0,',','.') }}</th>
                                 </tr>
+                                @if(DB::table('sale_payments')
+                                    ->where('sale_id', '=', $sale->id)
+                                    ->orderBy('id', 'DESC')
+                                    ->first()
+                                    ->metode_pembayaran != 'tabungan')
                                 <tr>
                                     <th colspan="3" class="text-right" style="border:0px">PEMBAYARAN :</th>
-                                    <th class="text-right">{{ number_format($last->payment, 0, ',', '.') }}</th>
+                                    <th class="text-right">
+                                        @if(count(DB::table('sale_payments')->where('sale_id', '=', $sale->id)->get()) > 1)
+                                            <small><i>(TERBAYAR) {{ number_format(($last->payment - $last->debit), 0, ',', '.') }}</i></small><br />
+                                        @endif
+                                        {{ number_format($last->debit, 0, ',', '.') }}
+                                    </th>
                                 </tr>
+                                @endif
                                 <tr>
                                     <th colspan="3" class="text-right" style="border:0px">UANG KEMBALIAN :</th>
                                     <th class="text-right">{{ $sale->status == "Lunas" ? number_format(($last->payment - $last->billing), 0, ',', '.') : 0 }}</th>
@@ -336,6 +403,7 @@
 <form id="simpanTabungan" action="{{ url('penjualan/'.encrypt($sale->customer_id).'/simpanTabungan') }}" method="post">
     @csrf
     <input type="hidden" name="saldo_tabungan" value="{{ ($last->payment - $last->billing) }}">
+    <input type="hidden" name="invoice" value="{{ $sale->invoice }}">
 </form>
 <script src="{{ asset('vendor/sweetalert2/sweetalert2.js') }}"></script>
 <script type="text/javascript">

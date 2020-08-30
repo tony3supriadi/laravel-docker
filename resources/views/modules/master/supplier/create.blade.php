@@ -1,3 +1,4 @@
+<?php use Illuminate\Support\Facades\DB; ?>
 @extends('layouts.app')
 
 @section('header')
@@ -59,9 +60,46 @@
                     </label>
                     
                     <div class="col-md-6 py-2">
-                        <input type="radio" value="1" name="companies" class="mr-1" checked> PERUSAHAAN
+                        <input type="radio" value="1" name="companies" class="mr-1" checked onclick="
+                            if ($(this).is(':checked')) {
+                                $('#cari_pelanggan').addClass('d-none');
+                            } 
+                        "> PERUSAHAAN
                         <span class="mx-2 text-gray">|</span>
-                        <input type="radio" value="0" name="companies" class="mr-1"> PERORANGAN
+                        <input type="radio" value="0" name="companies" class="mr-1" onclick="
+                            if ($(this).is(':checked')) {
+                                $('#cari_pelanggan').addClass('d-none');
+                            } 
+                        "> PERORANGAN
+                        <span class="mx-2 text-gray">|</span>
+                        <input type="radio" value="0" name="companies" class="mr-1" onclick="
+                            if ($(this).is(':checked')) {
+                                $('#cari_pelanggan').removeClass('d-none');
+                            } 
+                        "> PELANGGAN
+                    </div>
+                </div>
+
+                <div class="form-group row d-none" id="cari_pelanggan">
+                    <label for="car-plenggan" class="col-md-3 py-2 text-right">
+                        CARI PELANGGAN
+                    </label>
+
+                    <div class="col-md-6">
+                        <select name="customer_id" data-placeholder="" class="form-control select2"
+                            onchange="
+                                $.get('/api/customer/' + $(this).val(), function(data) {
+                                    $('input[name=name]')
+                                        .val(data.name)
+                                        .attr('readonly', '');
+                                });
+                            "
+                        >
+                            <option value=""></option>
+                            @foreach(DB::table('customers')->orderBy('name', 'ASC')->get() as $item)
+                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
